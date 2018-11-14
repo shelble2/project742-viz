@@ -1,0 +1,202 @@
+<!--
+- visualization from https://bl.ocks.org/mbostock/4062045
+- data from https://www.kaggle.com/thec03u5/seinfeld-chronicles/data
+- modifications I made
+   - parsing my data to get it into the right format for the graph
+   - made markers bigger
+   - changed tool tip to include number of episodes
+   - changed color scheme to related to number of episodes
+   - changed charge to keep disjoint sets closer to big group
+   - changed the link distance force
+   - added forceCollide so that they avoid overlapping
+   - added tool tip to edges
+   - made link with frequent collaborators more powerful charge
+   - added labels to nodes, played with text and edge colors to make them more readable
+-->
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Seinfeld Collaboration</title>
+<h1 style="font-family:'arial'">Seinfeld Writers' Collaborations</h1>
+<style>
+
+    .links line {
+        stroke: #999;
+        stroke-opacity: 0.6;
+    }
+
+    .nodes circle {
+        stroke: #fff;
+        stroke-width: 1.5px;
+    }
+
+</style>
+<svg width="1000" height="600"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+
+    var svg = d3.select("svg"),
+        width = +svg.attr("width"),
+        height = +svg.attr("height");
+
+    var color = d3.scaleQuantize()
+        .domain([0, 30])
+        .range(["#fed976", "#feb24c", "#fd8d3c", "#f03b20", "#bd0026"]);
+
+    var simulation = d3.forceSimulation()
+        .force("link", d3.forceLink().id(function(d) { return d.id; })
+            .distance(function(d) {
+                return (50 - d.value );}))
+        .force("charge", d3.forceManyBody().strength(-15))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collide", d3.forceCollide(30))
+        .force("radial", d3.forceRadial(width/4, width /2, height /2));
+
+    d3.csv("Data3.csv", function(error, csv) {
+        if (error) throw error;
+
+        var nodes = [];
+        var links = [];
+
+        csv.forEach(function(row) {
+            var writers_str = row.Writers;
+
+            // Remove spaces around commas; change 'and's to commas
+            writers_str = writers_str.replace(/, /g, ",");
+            writers_str = writers_str.replace(/ and /g, ",");
+
+            //split on commas
+            var writers = writers_str.split(",");
+            writers = writers.sort();
+
+            // add any new writers to nodes
+            for(var i = 0; i < writers.length; i++){
+                nodes.push({id: writers[i]});
+
+                // add a link to each subsequent writer
+                var j = i + 1;
+                for(j; j < writers.length; j++){
+                    links.push({
+                        source: writers[i],
+                        target: writers[j],
+                        value: 1
+                    });
+                }
+            }
+        });
+
+        var graph = {};
+
+        var tmp_nodes = d3.nest()
+            .key(function(d) { return d.id; })
+            .rollup(function(v) {return v.length;} )
+            .entries(nodes);
+
+        graph["nodes"] = [];
+        tmp_nodes.forEach(function(node) {
+            graph["nodes"].push({
+                id: node.key,
+                value: node.value
+            });
+        });
+
+
+        var rolled_links = d3.nest()
+            .key(function(d) {return d.source;})
+            .key(function(d) {return d.target;})
+            .rollup(function(v) {return v.length;})
+            .entries(links);
+
+        //flatten the rolled links back out
+        graph["links"] = [];
+        rolled_links.forEach(function(s_entry){
+            s_entry.values.forEach(function(collab) {
+                graph["links"].push({
+                    source: s_entry.key,
+                    target: collab.key,
+                    value: collab.value
+                });
+            });
+        });
+
+        console.log(graph);
+
+        var link = svg.append("g")
+            .attr("class", "links")
+            .selectAll("line")
+            .data(graph.links)
+            .enter().append("line")
+            .attr("stroke-width", function(d) { return (Math.sqrt(d.value) *1.1) ; });
+        link.append("title")
+            .text(function(d) {
+                return d.source + " & " + d.target + ": " + d.value + " collaboration(s)";
+            });
+
+        var node = svg.append("g")
+            .attr("class", "nodes")
+            .selectAll(".node")
+            .data(graph.nodes)
+            .enter().append("g")
+            .attr("class", "node")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        node.append("circle")
+            .attr("r", 8)
+            .attr("fill", function(d) { return color(d.value); });
+
+        node.append("text")
+            .attr("font-size", 10)
+            .attr("background-color", "white")
+            .attr("font-family", "calibri")
+            .attr("font-weight", "bold")
+            .attr("text-anchor", "middle")
+            .attr("transform", "translate(0, 15)")
+            .text(function(d) { return d.id; });
+
+
+        node.append("title")
+            .text(function(d) { return d.id + ": " + d.value; });
+
+
+        simulation
+            .nodes(graph.nodes)
+            .on("tick", ticked);
+
+        simulation.force("link")
+            .links(graph.links);
+
+        function ticked() {
+            link
+                .attr("x1", function(d) { return d.source.x; })
+                .attr("y1", function(d) { return d.source.y; })
+                .attr("x2", function(d) { return d.target.x; })
+                .attr("y2", function(d) { return d.target.y; });
+
+            node
+                .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+                /*
+                .attr("cx", function(d) { return d.x; })
+                .attr("cy", function(d) { return d.y; });*/
+        }
+    });
+
+    function dragstarted(d) {
+        if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
+
+    function dragged(d) {
+        d.fx = d3.event.x;
+        d.fy = d3.event.y;
+    }
+
+    function dragended(d) {
+        if (!d3.event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
+
+</script>
