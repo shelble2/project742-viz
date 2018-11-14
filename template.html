@@ -1,22 +1,11 @@
 <!--
 - visualization from https://bl.ocks.org/mbostock/4062045
-- data from https://www.kaggle.com/thec03u5/seinfeld-chronicles/data
-- modifications I made
-   - parsing my data to get it into the right format for the graph
-   - made markers bigger
-   - changed tool tip to include number of episodes
-   - changed color scheme to related to number of episodes
-   - changed charge to keep disjoint sets closer to big group
-   - changed the link distance force
-   - added forceCollide so that they avoid overlapping
-   - added tool tip to edges
-   - made link with frequent collaborators more powerful charge
-   - added labels to nodes, played with text and edge colors to make them more readable
+- Modifications by S. Helble
 -->
 <!DOCTYPE html>
 <meta charset="utf-8">
-<title>Seinfeld Collaboration</title>
-<h1 style="font-family:'arial'">Seinfeld Writers' Collaborations</h1>
+<title>Similarity Visualization</title>
+<h1 style="font-family:'arial'">Similarity of files and sections</h1>
 <style>
 
     .links line {
@@ -51,37 +40,25 @@
         .force("collide", d3.forceCollide(30))
         .force("radial", d3.forceRadial(width/4, width /2, height /2));
 
-    d3.csv("Data3.csv", function(error, csv) {
-        if (error) throw error;
+d3.csv("similarity_data.csv", function(error, csv) {
+	if (error) throw error;
 
-        var nodes = [];
+	var nodes = [];
         var links = [];
 
         csv.forEach(function(row) {
-            var writers_str = row.Writers;
+		var file1 = row.file1;
+	    	var file2 = row.file2;
+		
+		// Add the files to the set of nodes	
+		nodes.push({id: file1});
+		nodes.push({id: file2});
 
-            // Remove spaces around commas; change 'and's to commas
-            writers_str = writers_str.replace(/, /g, ",");
-            writers_str = writers_str.replace(/ and /g, ",");
-
-            //split on commas
-            var writers = writers_str.split(",");
-            writers = writers.sort();
-
-            // add any new writers to nodes
-            for(var i = 0; i < writers.length; i++){
-                nodes.push({id: writers[i]});
-
-                // add a link to each subsequent writer
-                var j = i + 1;
-                for(j; j < writers.length; j++){
-                    links.push({
-                        source: writers[i],
-                        target: writers[j],
-                        value: 1
-                    });
-                }
-            }
+		// add a link between files
+		links.push({source: file1, 
+			    target: file2,
+			    value: 1
+			  });
         });
 
         var graph = {};
