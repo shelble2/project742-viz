@@ -27,14 +27,14 @@
         width = +svg.attr("width"),
         height = +svg.attr("height");
 
-    var color = d3.scaleQuantize()
-        .domain([0, 30])
-        .range(["#fed976", "#feb24c", "#fd8d3c", "#f03b20", "#bd0026"]);
+    var color = d3.scaleOrdinal()
+        .domain(['full', 'text', 'data', 'rodata'])
+        .range(["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99"]);
 
     var simulation = d3.forceSimulation()
         .force("link", d3.forceLink().id(function(d) { return d.id; })
             .distance(function(d) {
-                return (50 - d.value );}))
+                return (150 - d.value );}))
         .force("charge", d3.forceManyBody().strength(-15))
         .force("center", d3.forceCenter(width / 2, height / 2))
         .force("collide", d3.forceCollide(30))
@@ -51,49 +51,39 @@ d3.csv("similarity_data.csv", function(error, csv) {
 	    	var file2 = row.file2;
 		
 		// Add the files to the set of nodes	
-		nodes.push({id: file1});
-		nodes.push({id: file2});
+		nodes.push({id: file1, value: row.section});
+		nodes.push({id: file2, value: row.section});
 
 		// add a link between files
 		links.push({source: file1, 
 			    target: file2,
-			    value: 1
+			    value: row.metric
 			  });
         });
 
+
         var graph = {};
 
+	// This nesting eliminates duplicate nodes
+	// but also rolls all node.values into a list
+	// ex: Object { id: <filename> value: [{key: <section>}...] ...}
         var tmp_nodes = d3.nest()
             .key(function(d) { return d.id; })
-            .rollup(function(v) {return v.length;} )
+            .key(function(d) {return d.value;} )
             .entries(nodes);
 
+	// This puts the nodes into their final data structure for 
+	// display, and flattens out the listing problem above.
         graph["nodes"] = [];
         tmp_nodes.forEach(function(node) {
             graph["nodes"].push({
                 id: node.key,
-                value: node.value
+                value: node.values[0]["key"]
             });
         });
 
-
-        var rolled_links = d3.nest()
-            .key(function(d) {return d.source;})
-            .key(function(d) {return d.target;})
-            .rollup(function(v) {return v.length;})
-            .entries(links);
-
-        //flatten the rolled links back out
-        graph["links"] = [];
-        rolled_links.forEach(function(s_entry){
-            s_entry.values.forEach(function(collab) {
-                graph["links"].push({
-                    source: s_entry.key,
-                    target: collab.key,
-                    value: collab.value
-                });
-            });
-        });
+	// add the links
+        graph["links"] = links;
 
         console.log(graph);
 
@@ -102,10 +92,10 @@ d3.csv("similarity_data.csv", function(error, csv) {
             .selectAll("line")
             .data(graph.links)
             .enter().append("line")
-            .attr("stroke-width", function(d) { return (Math.sqrt(d.value) *1.1) ; });
+            .attr("stroke-width", function(d) { return (d.value/7) ; });
         link.append("title")
             .text(function(d) {
-                return d.source + " & " + d.target + ": " + d.value + " collaboration(s)";
+                return d.source + " & " + d.target + ": " + d.value + " %";
             });
 
         var node = svg.append("g")
