@@ -34,13 +34,13 @@
     var simulation = d3.forceSimulation()
         .force("link", d3.forceLink().id(function(d) { return d.id; })
             .distance(function(d) {
-                return (150 - d.value );}))
+                return (300 - d.value*2 );}))
         .force("charge", d3.forceManyBody().strength(-15))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collide", d3.forceCollide(30))
+        .force("collide", d3.forceCollide(function(d) {return d.value/5;}))//30))
         .force("radial", d3.forceRadial(width/4, width /2, height /2));
 
-d3.csv("similarity_data.csv", function(error, csv) {
+    d3.csv("similarity_data.csv", function(error, csv) {
 	if (error) throw error;
 
 	var nodes = [];
@@ -92,7 +92,8 @@ d3.csv("similarity_data.csv", function(error, csv) {
             .selectAll("line")
             .data(graph.links)
             .enter().append("line")
-            .attr("stroke-width", function(d) { return (d.value/7) ; });
+            .attr("stroke-width", 5) //choosing not to have link width tied to similarity for 
+                                     //now. used to be : //function(d) { return (d.value/7) ; });
         link.append("title")
             .text(function(d) {
                 return d.source + " & " + d.target + ": " + d.value + " %";
