@@ -35,9 +35,9 @@
         .force("link", d3.forceLink().id(function(d) { return d.id; })
             .distance(function(d) {
                 return (300 - d.value*2 );}))
-        .force("charge", d3.forceManyBody().strength(-15))
+        .force("charge", d3.forceManyBody().strength(-50))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collide", d3.forceCollide(function(d) {return d.value/5;}))//30))
+        .force("collide", d3.forceCollide(25))
         .force("radial", d3.forceRadial(width/4, width /2, height /2));
 
     d3.csv("similarity_data.csv", function(error, csv) {
@@ -53,12 +53,14 @@
 		// Add the files to the set of nodes	
 		nodes.push({id: file1, value: row.section});
 		nodes.push({id: file2, value: row.section});
-
-		// add a link between files
-		links.push({source: file1, 
-			    target: file2,
-			    value: row.metric
-			  });
+		
+		// add a link between files ONLY if some similiarity
+		if (row.metric > 0){
+			links.push({source: file1, 
+				    target: file2,
+				    value: row.metric
+				  });
+		}
         });
 
 
